@@ -11,7 +11,7 @@ import torch
 from foundations.hparams import Hparams
 import platforms.platform
 
-
+os.environ["CUDA_VISIBLE_DEVICES"] = "0, 1"
 @dataclass
 class Platform(Hparams):
     num_workers: int = 0
@@ -27,7 +27,7 @@ class Platform(Hparams):
         # GPU device.
         if torch.cuda.is_available() and torch.cuda.device_count() > 0:
             device_ids = ','.join([str(x) for x in range(torch.cuda.device_count())])
-            return f'cuda:{device_ids}'
+            return f'cuda:{0}'
 
         # CPU device.
         else:
@@ -115,5 +115,6 @@ class Platform(Hparams):
         """Run a function that trains a network."""
         old_platform = platforms.platform._PLATFORM
         platforms.platform._PLATFORM = self
+
         f()
         platforms.platform._PLATFORM = old_platform

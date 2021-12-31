@@ -5,11 +5,12 @@
 
 import argparse
 import sys
-
+import os
 from cli import runner_registry
 from cli import arg_utils
 import platforms.registry
 
+os.environ["CUDA_VISIBLE_DEVICE"] = "1"
 
 def main():
     # The welcome message.

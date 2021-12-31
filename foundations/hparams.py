@@ -37,9 +37,12 @@ class Hparams(abc.ABC):
             arg_name = f'--{field.name}' if prefix is None else f'--{prefix}_{field.name}'
             helptext = getattr(cls, f'_{field.name}') if hasattr(cls, f'_{field.name}') else ''
 
-            if defaults: default = copy.deepcopy(getattr(defaults, field.name, None))
-            elif field.default != MISSING: default = copy.deepcopy(field.default)
-            else: default = None
+            if defaults:
+                default = copy.deepcopy(getattr(defaults, field.name, None))
+            elif field.default != MISSING:
+                default = copy.deepcopy(field.default)
+            else:
+                default = None
 
             if field.type == bool:
                 if (defaults and getattr(defaults, field.name) is not False) or field.default is not False:
@@ -48,9 +51,12 @@ class Hparams(abc.ABC):
 
             elif field.type in [str, float, int]:
                 required = field.default is MISSING and (not defaults or not getattr(defaults, field.name))
-                if required:  helptext = '(required: %(type)s) ' + helptext
-                elif default: helptext = f'(default: {default}) ' + helptext
-                else:         helptext = '(optional: %(type)s) ' + helptext
+                if required:
+                    helptext = '(required: %(type)s) ' + helptext
+                elif default:
+                    helptext = f'(default: {default}) ' + helptext
+                else:
+                    helptext = '(optional: %(type)s) ' + helptext
                 parser.add_argument(arg_name, type=field.type, default=default, required=required, help=helptext)
 
             # If it is a nested hparams, use the field name as the prefix and add all arguments.
@@ -58,7 +64,8 @@ class Hparams(abc.ABC):
                 subprefix = f'{prefix}_{field.name}' if prefix else field.name
                 field.type.add_args(parser, defaults=default, prefix=subprefix, create_group=False)
 
-            else: raise ValueError(f'Invalid field type {field.type} for hparams.')
+            else:
+                raise ValueError(f'Invalid field type {field.type} for hparams.')
 
     @classmethod
     def create_from_args(cls, args: argparse.Namespace, prefix: str = None) -> 'Hparams':
@@ -77,7 +84,8 @@ class Hparams(abc.ABC):
                 subprefix = f'{prefix}_{field.name}' if prefix else field.name
                 d[field.name] = field.type.create_from_args(args, subprefix)
 
-            else: raise ValueError(f'Invalid field type {field.type} for hparams.')
+            else:
+                raise ValueError(f'Invalid field type {field.type} for hparams.')
 
         return cls(**d)
 
@@ -112,6 +120,10 @@ class DatasetHparams(Hparams):
     random_labels_fraction: float = None
     unsupervised_labels: str = None
     blur_factor: int = None
+    noise_type: str = 'sym'
+    noise_ratio: float = 0.2
+    dataset_basedir = '/home/jrq/open_lth_datasets/cifar10/cifar-10-batches-py/'
+    # dataset_basedir = '/home/jrq/open_lth_datasets/cifar100/cifar-100-python/'
 
     _name: str = 'Dataset Hyperparameters'
     _description: str = 'Hyperparameters that select the dataset, data augmentation, and other data transformations.'
@@ -124,6 +136,13 @@ class DatasetHparams(Hparams):
     _random_labels_fraction: str = 'Apply random labels to a fraction of the training set: float in (0, 1]'
     _unsupervised_labels: str = 'Replace the standard labels with alternative, unsupervised labels. Example: rotation'
     _blur_factor: str = 'Blur the training set by downsampling and then upsampling by this multiple.'
+
+    _noise_type: str = 'The noise type of the dataset: symmetric|pairflip|asymmetric'
+    _noise_ratio: str = 'The noise ratio of noisy labels, in (0, 1)'
+
+    # _cifar10_basedir: str = 'The base directory of cifar10 dataset'
+    # _cifar100_basedir: str = 'The base directory of cifar100 dataset'
+    _dataset_basedir: str = 'The base directory of dataset'
 
 
 @dataclass
@@ -151,6 +170,10 @@ class ModelHparams(Hparams):
 class TrainingHparams(Hparams):
     optimizer_name: str
     lr: float
+    e1: int
+    e2:int
+    lam:float
+    tau:float
     training_steps: str
     data_order_seed: int = None
     momentum: float = 0.0
@@ -158,6 +181,8 @@ class TrainingHparams(Hparams):
     milestone_steps: str = None
     gamma: float = None
     warmup_steps: str = None
+
+
     weight_decay: float = None
     apex_fp16: bool = False
 

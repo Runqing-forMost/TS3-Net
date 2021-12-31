@@ -2,7 +2,7 @@
 
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
-
+import os
 import time
 import torch
 
@@ -11,6 +11,8 @@ from foundations import hparams
 from foundations.step import Step
 from platforms.platform import get_platform
 from training import checkpointing
+
+os.environ["CUDA_VISIBLE_DEVICE"] = "0, 1"
 
 
 # Standard callbacks.
@@ -52,13 +54,14 @@ def create_eval_callback(eval_name: str, loader: DataLoader, verbose=False):
         model.eval()
 
         with torch.no_grad():
-            for examples, labels in loader:
+            for examples, labels, _ in loader:
                 examples = examples.to(get_platform().torch_device)
                 labels = labels.squeeze().to(get_platform().torch_device)
-                output = model(examples)
+                output, f = model(examples)
 
                 labels_size = torch.tensor(len(labels), device=get_platform().torch_device)
                 example_count += labels_size
+
                 total_loss += model.loss_criterion(output, labels) * labels_size
                 total_correct += correct(labels, output)
 
@@ -81,7 +84,7 @@ def create_eval_callback(eval_name: str, loader: DataLoader, verbose=False):
                 nonlocal time_of_last_call
                 elapsed = 0 if time_of_last_call is None else time.time() - time_of_last_call
                 print('{}\tep {:03d}\tit {:03d}\tloss {:.3f}\tacc {:.2f}%\tex {:d}\ttime {:.2f}s'.format(
-                    eval_name, step.ep, step.it, total_loss/example_count, 100 * total_correct/example_count,
+                    eval_name, step.ep, step.it, total_loss / example_count, 100 * total_correct / example_count,
                     int(example_count), elapsed))
                 time_of_last_call = time.time()
 
@@ -95,6 +98,7 @@ def run_every_epoch(callback):
         if step.it != 0:
             return
         callback(output_location, step, model, optimizer, logger)
+
     return modified_callback
 
 
@@ -107,6 +111,7 @@ def run_at_step(step1, callback):
         if step != step1:
             return
         callback(output_location, step, model, optimizer, logger)
+
     return modified_callback
 
 
@@ -128,8 +133,73 @@ def standard_callbacks(training_hparams: hparams.TrainingHparams, train_set_load
     ]
 
     # Test every epoch if requested.
-    if evaluate_every_epoch: result = [run_every_epoch(test_eval_callback)] + result
-    elif verbose: result.append(run_every_epoch(create_timekeeper_callback()))
+    if evaluate_every_epoch:
+        result = [run_every_epoch(test_eval_callback)] + result
+    elif verbose:
+        result.append(run_every_epoch(create_timekeeper_callback()))
+
+    # Ensure that testing occurs at least at the beginning and end of training.
+    if start.it != 0 or not evaluate_every_epoch: result = [run_at_step(start, test_eval_callback)] + result
+    if end.it != 0 or not evaluate_every_epoch: result = [run_at_step(end, test_eval_callback)] + result
+
+    # Do the same for the train set if requested.
+    if eval_on_train:
+        if evaluate_every_epoch: result = [run_every_epoch(train_eval_callback)] + result
+        if start.it != 0 or not evaluate_every_epoch: result = [run_at_step(start, train_eval_callback)] + result
+        if end.it != 0 or not evaluate_every_epoch: result = [run_at_step(end, train_eval_callback)] + result
+
+    return result
+
+
+
+def create_eval_webvision(eval_name: str, loader: DataLoader, verbose=False):
+    """This function returns a callback."""
+
+    time_of_last_call = None
+
+    def eval_callback(output_location, step, model, optimizer, logger):
+        import torch
+        import torchnet
+        acc_meter = torchnet.meter.ClassErrorMeter(topk=[1,5], accuracy=True)
+        acc_meter.reset()
+        model.eval()
+        correct = 0
+        total = 0
+        nonlocal time_of_last_call
+        with torch.no_grad():
+            for batch_idx, (inputs, targets, _) in enumerate(loader):
+                inputs, targets = inputs.cuda(), targets.cuda()
+                outputs, _ = model(inputs)
+                # _, predicted = torch.max(outputs, 1)                 
+                acc_meter.add(outputs.cpu(),targets.cpu())
+        accs = acc_meter.value()
+        elapsed = 0 if time_of_last_call is None else time.time() - time_of_last_call
+        print('{}\tep {:03d}\tit {:.3f}\ttop1 acc {:.3f}\t top5 acc {:.3f}\ttime {:.2f}s'.format(
+                    eval_name, step.ep, step.it , accs[0], accs[1], elapsed))
+        
+    return eval_callback
+
+def webvision_callbacks(training_hparams: hparams.TrainingHparams, train_set_loader: DataLoader,
+                       test_set_loader: DataLoader, eval_on_train: bool = False, verbose: bool = True,
+                       start_step: Step = None, evaluate_every_epoch: bool = True):
+    start = start_step or Step.zero(train_set_loader.iterations_per_epoch)
+    end = Step.from_str(training_hparams.training_steps, train_set_loader.iterations_per_epoch)
+    test_eval_callback = create_eval_webvision('test', test_set_loader, verbose=verbose)
+    train_eval_callback = create_eval_webvision('train', train_set_loader, verbose=verbose)
+
+    # Basic checkpointing and state saving at the beginning and end.
+    result = [
+        run_at_step(start, save_model),
+        run_at_step(end, save_model),
+        run_at_step(end, save_logger),
+        run_every_epoch(checkpointing.save_checkpoint_callback),
+    ]
+
+    # Test every epoch if requested.
+    if evaluate_every_epoch:
+        result = [run_every_epoch(test_eval_callback)] + result
+    elif verbose:
+        result.append(run_every_epoch(create_timekeeper_callback()))
 
     # Ensure that testing occurs at least at the beginning and end of training.
     if start.it != 0 or not evaluate_every_epoch: result = [run_at_step(start, test_eval_callback)] + result

@@ -30,14 +30,15 @@ class LotteryDesc(Desc):
     pretrain_training_hparams: hparams.TrainingHparams = None
 
     @staticmethod
-    def name_prefix(): return 'lottery'
+    def name_prefix():
+        return 'lottery'
 
     @staticmethod
     def _add_pretrain_argument(parser):
         help_text = \
-            'Perform a pre-training phase prior to running the main lottery ticket process. Setting this argument '\
-            'will enable arguments to control how the dataset and training during this pre-training phase. Rewinding '\
-            'is a specific case of of pre-training where pre-training uses the same dataset and training procedure '\
+            'Perform a pre-training phase prior to running the main lottery ticket process. Setting this argument ' \
+            'will enable arguments to control how the dataset and training during this pre-training phase. Rewinding ' \
+            'is a specific case of of pre-training where pre-training uses the same dataset and training procedure ' \
             'as the main training run.'
         parser.add_argument('--pretrain', action='store_true', help=help_text)
 
@@ -46,8 +47,8 @@ class LotteryDesc(Desc):
         help_text = \
             'The number of steps for which to train the network before the lottery ticket process begins. This is ' \
             'the \'rewinding\' step as described in recent lottery ticket research. Can be expressed as a number of ' \
-            'epochs (\'160ep\') or a number  of iterations (\'50000it\'). If this flag is present, no other '\
-            'pretraining arguments  may be set. Pretraining will be conducted using the same dataset and training '\
+            'epochs (\'160ep\') or a number  of iterations (\'50000it\'). If this flag is present, no other ' \
+            'pretraining arguments  may be set. Pretraining will be conducted using the same dataset and training ' \
             'hyperparameters as for the main training run. For the full range of pre-training options, use --pretrain.'
         parser.add_argument('--rewinding_steps', type=str, help=help_text)
 
@@ -117,6 +118,7 @@ class LotteryDesc(Desc):
     def str_to_step(self, s: str, pretrain: bool = False) -> Step:
         dataset_hparams = self.pretrain_dataset_hparams if pretrain else self.dataset_hparams
         iterations_per_epoch = datasets_registry.iterations_per_epoch(dataset_hparams)
+        # print(iterations_per_epoch, '----')
         return Step.from_str(s, iterations_per_epoch)
 
     @property
@@ -125,8 +127,10 @@ class LotteryDesc(Desc):
 
     @property
     def train_start_step(self):
-        if self.pretrain_training_hparams: return self.str_to_step(self.pretrain_training_hparams.training_steps)
-        else: return self.str_to_step('0it')
+        if self.pretrain_training_hparams:
+            return self.str_to_step(self.pretrain_training_hparams.training_steps)
+        else:
+            return self.str_to_step('0it')
 
     @property
     def train_end_step(self):

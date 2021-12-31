@@ -2,7 +2,7 @@
 
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
-
+import os
 import json
 import numpy as np
 import torch
@@ -10,7 +10,7 @@ import torch
 from foundations import paths
 from models import base
 from platforms.platform import get_platform
-
+os.environ["CUDA_VISIBLE_DEVICE"] = "1"
 
 class Mask(dict):
     def __init__(self, other_dict=None):

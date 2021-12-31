@@ -40,7 +40,7 @@ class Model(base.Model):
                 filters = spec
 
         self.layers = nn.Sequential(*layers)
-        self.fc = nn.Linear(512, outputs)
+        self.fc = nn.Linear(2048, outputs)
         self.criterion = nn.CrossEntropyLoss()
 
         self.apply(initializer)
@@ -58,7 +58,7 @@ class Model(base.Model):
 
     @staticmethod
     def is_valid_model_name(model_name):
-        return (model_name.startswith('cifar_vgg_') and
+        return (model_name.startswith('animal_vgg_') and
                 len(model_name.split('_')) == 3 and
                 model_name.split('_')[2].isdigit() and
                 int(model_name.split('_')[2]) in [11, 13, 16, 19])
@@ -68,7 +68,7 @@ class Model(base.Model):
         if not Model.is_valid_model_name(model_name):
             raise ValueError('Invalid model name: {}'.format(model_name))
 
-        outputs = outputs or 100
+        outputs = outputs or 10
 
         num = int(model_name.split('_')[2])
         if num == 11:
@@ -91,14 +91,14 @@ class Model(base.Model):
     @staticmethod
     def default_hparams():
         model_hparams = hparams.ModelHparams(
-            model_name='cifar_vgg_16',
+            model_name='animal_vgg_16',
             model_init='kaiming_normal',
             batchnorm_init='uniform',
         )
 
         dataset_hparams = hparams.DatasetHparams(
-            dataset_name='cifar100',
-            batch_size=512
+            dataset_name='animal',
+            batch_size=128
         )
 
         training_hparams = hparams.TrainingHparams(
@@ -108,11 +108,7 @@ class Model(base.Model):
             lr=0.1,
             gamma=0.1,
             weight_decay=1e-4,
-            training_steps='60ep',
-            e1=20,
-            e2=80,
-            lam=1,
-            tau=0.7      
+            training_steps='80ep'
         )
 
         pruning_hparams = sparse_global.PruningHparams(

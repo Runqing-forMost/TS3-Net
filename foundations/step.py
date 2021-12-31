@@ -76,6 +76,7 @@ class Step:
         if not isinstance(other, Step):
             raise ValueError('Invalid type for other: {}.'.format(type(other)))
         if self._iterations_per_epoch != other._iterations_per_epoch:
+            # print(self._iterations_per_epoch, other._iterations_per_epoch)
             raise ValueError('Cannot compare steps when epochs are of different lengths.')
 
     def __lt__(self, other):

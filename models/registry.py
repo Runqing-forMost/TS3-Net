@@ -8,11 +8,12 @@ import torch
 from foundations import paths
 from foundations.hparams import ModelHparams
 from foundations.step import Step
-from models import cifar_resnet, cifar_vgg, mnist_lenet, imagenet_resnet
+from models import cifar_resnet, cifar_vgg, mnist_lenet, imagenet_resnet, animal_resnet, animal_vgg, food_vgg, cifar_cnn, clothing_resnet, webvision_inceptionv2
 from models import bn_initializers, initializers
 from platforms.platform import get_platform
 
-registered_models = [mnist_lenet.Model, cifar_resnet.Model, cifar_vgg.Model, imagenet_resnet.Model]
+registered_models = [mnist_lenet.Model, cifar_resnet.Model, cifar_vgg.Model, imagenet_resnet.Model, animal_resnet.Model,
+                     animal_vgg.Model, food_vgg.Model, cifar_cnn.Model, clothing_resnet.Model, webvision_inceptionv2.Model]
 
 
 def get(model_hparams: ModelHparams, outputs=None):
@@ -71,10 +72,13 @@ def get(model_hparams: ModelHparams, outputs=None):
     return model
 
 
-def load(save_location: str, save_step: Step, model_hparams: ModelHparams, outputs=None):
+def load(save_location: str, save_step: Step, model_hparams: ModelHparams, outputs=None, new=0):
     state_dict = get_platform().load_model(paths.model(save_location, save_step))
     model = get(model_hparams, outputs)
-    model.load_state_dict(state_dict)
+    if new:
+        return model
+    else:
+        model.load_state_dict(state_dict)
     return model
 
 

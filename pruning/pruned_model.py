@@ -5,7 +5,7 @@
 
 from models.base import Model
 from pruning.mask import Mask
-
+import os
 import numpy as np
 
 
@@ -17,7 +17,7 @@ class PrunedModel(Model):
     def __init__(self, model: Model, mask: Mask):
         if isinstance(model, PrunedModel): raise ValueError('Cannot nest pruned models.')
         super(PrunedModel, self).__init__()
-        self.model = model
+        self.model = model  # a shallow copy, attention!
 
         for k in self.model.prunable_layer_names:
             if k not in mask: raise ValueError('Missing mask value {}.'.format(k))
@@ -34,6 +34,7 @@ class PrunedModel(Model):
     def _apply_mask(self):
         for name, param in self.model.named_parameters():
             if hasattr(self, PrunedModel.to_mask_name(name)):
+                # print(getattr(self, PrunedModel.to_mask_name(name)))
                 param.data *= getattr(self, PrunedModel.to_mask_name(name))
 
     def forward(self, x):
@@ -56,8 +57,13 @@ class PrunedModel(Model):
         self.model.save(save_location, save_step)
 
     @staticmethod
-    def default_hparams(): raise NotImplementedError()
+    def default_hparams():
+        raise NotImplementedError()
+
     @staticmethod
-    def is_valid_model_name(model_name): raise NotImplementedError()
+    def is_valid_model_name(model_name):
+        raise NotImplementedError()
+
     @staticmethod
-    def get_model_from_name(model_name, outputs, initializer): raise NotImplementedError()
+    def get_model_from_name(model_name, outputs, initializer):
+        raise NotImplementedError()

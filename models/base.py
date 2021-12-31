@@ -6,7 +6,6 @@
 import abc
 import torch
 import typing
-
 from foundations import paths
 from foundations.step import Step
 import lottery.desc
@@ -26,9 +25,9 @@ class Model(abc.ABC, torch.nn.Module):
     @staticmethod
     @abc.abstractmethod
     def get_model_from_name(
-        model_name: str,
-        outputs: int,
-        initializer: typing.Callable[[torch.nn.Module], None]
+            model_name: str,
+            outputs: int,
+            initializer: typing.Callable[[torch.nn.Module], None]
     ) -> 'Model':
         """Returns an instance of this class as described by the model_name string."""
 
@@ -98,7 +97,7 @@ class DataParallel(Model, torch.nn.DataParallel):
         self.module.save(save_location, save_step)
 
 
-class DistributedDataParallel(Model, torch.nn.parallel.DistributedDataParallel):
+class DistributedDataParallel(Model):
     def __init__(self, module: Model, device_ids):
         super(DistributedDataParallel, self).__init__(module=module, device_ids=device_ids)
 

@@ -1,21 +1,18 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
-
-# This source code is licensed under the MIT license found in the
-# LICENSE file in the root directory of this source tree.
-
 import torch.nn as nn
-import torchvision.models as models
-
 import torch.nn.functional as F
+from datasets.registry import num_classes
 from foundations import hparams
+from foundations.paths import model
 from lottery.desc import LotteryDesc
 from models import base
+from models.imagenet_resnet import ResNet
 from pruning import sparse_global
-
+from torchvision import  models
+from models.inceptionv2 import InceptionResNetV2
 
 
 class Model(base.Model):
-    """A residual neural network as originally designed for CIFAR-10."""
+    """A inception as for webvision."""
 
     class Block(nn.Module):
         """A ResNet block."""
@@ -44,63 +41,28 @@ class Model(base.Model):
             out += self.shortcut(x)
             return F.relu(out)
 
-    def __init__(self, plan, initializer, outputs=None):
+    def __init__(self, plan, initializer, outputs=50):
         super(Model, self).__init__()
-        # outputs = outputs or 10
-        # # print(outputs,'----')
-        # # Initial convolution.
-        # current_filters = plan[0][0]
-        # self.conv = nn.Conv2d(3, current_filters, kernel_size=3, stride=1, padding=1, bias=False)
-        # self.bn = nn.BatchNorm2d(current_filters)
-        #
-        # # The subsequent blocks of the ResNet.
-        # blocks = []
-        # for segment_index, (filters, num_blocks) in enumerate(plan):
-        #     for block_index in range(num_blocks):
-        #         downsample = segment_index > 0 and block_index == 0
-        #         blocks.append(Model.Block(current_filters, filters, downsample))
-        #         current_filters = filters
-        #
-        # self.blocks = nn.Sequential(*blocks)
-        #
-        # # Final fc layer. Size = number of filters in last segment.
-        # self.fc = nn.Linear(plan[-1][0], outputs)
         self.criterion = nn.CrossEntropyLoss()
-
-        # self.criterion = SmallLossCE(rate=0.2)
-        # self.criterion = JointLoss()
-        # self.criterion = SCELoss()
-        # print('current loss function is SCE...')
-        # Initialize.
-        self.model = models.resnet50(pretrained=True)
-        self.model.fc = nn.Linear(2048, 10)
-        self.apply(initializer)
+        # self.model = InceptionResNetV2(num_classes=50)
+        self.model = models.resnet18(num_classes=50)
 
     def forward(self, x):
-        # out = F.relu(self.bn(self.conv(x)))
-        # out = self.blocks(out)
-        # out = F.avg_pool2d(out, out.size()[3])
-        # out = out.view(out.size(0), -1)
-        # f = out.clone().detach()
-        # # print(f.shape)
-        # out = self.fc(out)
         out = self.model(x)
         return out, 0
 
     @property
     def output_layer_names(self):
+        # return ['last_linear.weight', 'last_linear.bias']
         return ['fc.weight', 'fc.bias']
+
 
     @staticmethod
     def is_valid_model_name(model_name):
-        return (model_name.startswith('cifar_resnet_') and
-                5 > len(model_name.split('_')) > 2 and
-                all([x.isdigit() and int(x) > 0 for x in model_name.split('_')[2:]]) and
-                (int(model_name.split('_')[2]) - 2) % 6 == 0 and
-                int(model_name.split('_')[2]) > 2)
+        return True
 
     @staticmethod
-    def get_model_from_name(model_name, initializer,  outputs=100):
+    def get_model_from_name(model_name, initializer, outputs=50):
         """The naming scheme for a ResNet is 'cifar_resnet_N[_W]'.
 
         The ResNet is structured as an initial convolutional layer followed by three "segments"
@@ -119,21 +81,9 @@ class Model(base.Model):
         The name of the network would be 'cifar_resnet_20' or 'cifar_resnet_20_16'.
         """
 
-        if not Model.is_valid_model_name(model_name):
-            raise ValueError('Invalid model name: {}'.format(model_name))
 
-        name = model_name.split('_')
-        W = 16 if len(name) == 3 else int(name[3])
-        D = int(name[2])
-        if (D - 2) % 3 != 0:
-            raise ValueError('Invalid ResNet depth: {}'.format(D))
-        D = (D - 2) // 6
-        plan = [(W, D), (2*W, D), (4*W, D)]
+        return Model(None, None, outputs)
 
-        return Model(plan, initializer, outputs)
-        # model = models.resnet50(pretrained=True)
-        # model.fc = nn.Linear(2048, 10)
-        return model
     @property
     def loss_criterion(self):
         return self.criterion
@@ -141,31 +91,31 @@ class Model(base.Model):
     @staticmethod
     def default_hparams():
         model_hparams = hparams.ModelHparams(
-            model_name='cifar_cnn',
+            model_name='webvision_inceptionv2',
             model_init='kaiming_normal',
             batchnorm_init='uniform',
         )
 
         dataset_hparams = hparams.DatasetHparams(
-            dataset_name='cifar10',
-            batch_size=256
+            dataset_name='webvision',
+            batch_size=128,
         )
 
         training_hparams = hparams.TrainingHparams(
             optimizer_name='sgd',
             momentum=0.9,
-            milestone_steps='60ep',
+            milestone_steps='60ep,70ep',
             lr=0.05,
             gamma=0.1,
-            weight_decay=1e-4,
-            training_steps='60ep',
+            weight_decay=5e-4,
+            training_steps='80ep',
             e1=20,
-            e2=80
+            e2=60
         )
 
         pruning_hparams = sparse_global.PruningHparams(
             pruning_strategy='sparse_global',
-            pruning_fraction=0.2,
-            pruning_layers_to_ignore='fc.weight'
+            pruning_fraction=0.1
         )
+
         return LotteryDesc(model_hparams, dataset_hparams, training_hparams, pruning_hparams)

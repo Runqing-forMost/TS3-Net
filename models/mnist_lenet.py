@@ -35,7 +35,7 @@ class Model(base.Model):
         for layer in self.fc_layers:
             x = F.relu(layer(x))
 
-        return self.fc(x)
+        return self.fc(x), None
 
     @property
     def output_layer_names(self):
@@ -84,13 +84,13 @@ class Model(base.Model):
         training_hparams = hparams.TrainingHparams(
             optimizer_name='sgd',
             lr=0.1,
-            training_steps='40ep',
+            training_steps='60ep',
         )
 
         pruning_hparams = sparse_global.PruningHparams(
             pruning_strategy='sparse_global',
             pruning_fraction=0.2,
-            pruning_layers_to_ignore='fc.weight',
+            # pruning_layers_to_ignore='fc.weight',
         )
 
         return LotteryDesc(model_hparams, dataset_hparams, training_hparams, pruning_hparams)

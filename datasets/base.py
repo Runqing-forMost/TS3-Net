@@ -32,7 +32,8 @@ class Dataset(abc.ABC, torch.utils.data.Dataset):
 
     @staticmethod
     @abc.abstractmethod
-    def get_train_set(use_augmentation: bool) -> 'Dataset':
+    def get_train_set(use_augmentation: bool, noise_type: str, noise_ratio: float ,
+                      base_dir: str) -> 'Dataset':
         pass
 
     @staticmethod
@@ -51,6 +52,7 @@ class Dataset(abc.ABC, torch.utils.data.Dataset):
         """
 
         if examples.shape[0] != labels.shape[0]:
+            print(examples.shape[0], labels.shape[0])
             raise ValueError('Different number of examples ({}) and labels ({}).'.format(
                              examples.shape[0], examples.shape[0]))
         self._examples = examples
@@ -110,7 +112,7 @@ class ImageDataset(Dataset):
         for t in self._joint_image_transforms: example, label = t(example, label)
         example = self._composed(example)
         for t in self._joint_tensor_transforms: example, label = t(example, label)
-        return example, label
+        return example, label, index
 
     def blur(self, blur_factor: float) -> None:
         """Add a transformation that blurs the image by downsampling by blur_factor."""
@@ -188,7 +190,7 @@ class DataLoader(torch.utils.data.DataLoader):
             self._sampler = ShuffleSampler(len(dataset))
 
         self._iterations_per_epoch = np.ceil(len(dataset) / batch_size).astype(int)
-
+        self.dataset = dataset
         if get_platform().is_distributed:
             batch_size //= get_platform().world_size
             num_workers //= get_platform().world_size
@@ -203,3 +205,6 @@ class DataLoader(torch.utils.data.DataLoader):
     @property
     def iterations_per_epoch(self):
         return self._iterations_per_epoch
+
+    def __len__(self):
+        return len(self.dataset)
