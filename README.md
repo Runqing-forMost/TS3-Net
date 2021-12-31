@@ -8,7 +8,7 @@ This is the early version of codes for our paper ``When Sparse Neural Network Me
 Ubuntu 16 or 18 are ok for adoption.
 
 ### Run
-If you wish to run this method, you can conduct with the following commands:
+If you wish to run this method, you can conduct with the following shell comments:
 
 CIFAR-10：
 ``
