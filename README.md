@@ -4,7 +4,7 @@
 
 ### Notation
 
-This is the early version of codes for our paper ``When Sparse Neural Network Meets Label Noise Learning: A Multi-Stage Learning Framework`` (Under Review).
+Codes for our paper ``When Sparse Neural Network Meets Label Noise Learning: A Multi-Stage Learning Framework`` (TNNLS 2022).
 Ubuntu 16 or 18 are ok for adoption.
 
 ### Run
